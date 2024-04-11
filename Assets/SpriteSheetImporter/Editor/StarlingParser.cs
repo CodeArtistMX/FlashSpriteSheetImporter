@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Globalization;
 using System.Linq;
+using UnityEditor.U2D.Sprites;
 
 /// <summary>
 /// Starling parser
@@ -34,11 +35,10 @@ namespace Prankard.FlashSpriteSheetImporter
 			doc.LoadXml(textAsset.text);
 
 			XmlNodeList subTextures = doc.SelectNodes("//SubTexture");
-			List<SpriteMetaData> spriteSheet = new List<SpriteMetaData>();
+			List<SpriteRect> spriteSheet = new List<SpriteRect>();
 
             //bool pivotSet = false; //not used anymore
             Vector2 pivotPixels;
-
 			foreach (XmlNode node in subTextures)
 			{
 				string name = GetAttribute(node, "name");
@@ -145,12 +145,12 @@ namespace Prankard.FlashSpriteSheetImporter
                 }
 				
                 // Make Sprite
-				SpriteMetaData smd = new SpriteMetaData();
+				SpriteRect smd = new SpriteRect();
+				smd.spriteID = GUID.Generate();
 				smd.name = name;
 				smd.rect = new Rect(x, asset.height - y - height, width, height);
 				smd.pivot = spritePivot;
-				smd.alignment = 9; // Custom Sprite alignment (not center)
-
+				smd.alignment = SpriteAlignment.Custom;
 				spriteSheet.Add(smd);
 			}
 			
@@ -158,9 +158,14 @@ namespace Prankard.FlashSpriteSheetImporter
 			{
 				string assetPath = AssetDatabase.GetAssetPath(asset);
 				TextureImporter importer = TextureImporter.GetAtPath(assetPath) as TextureImporter;
-				importer.spritesheet = spriteSheet.ToArray();
 				importer.textureType = TextureImporterType.Sprite;
 				importer.spriteImportMode = SpriteImportMode.Multiple;
+				var factory = new SpriteDataProviderFactories();
+				factory.Init();
+				var dataProvider = factory.GetSpriteEditorDataProviderFromObject(importer);
+				dataProvider.InitSpriteEditorDataProvider();
+				dataProvider.SetSpriteRects(spriteSheet.ToArray());
+				dataProvider.Apply();
 
                 var guid = AssetDatabase.AssetPathToGUID(assetPath);
                 if (string.IsNullOrEmpty(guid))
@@ -184,7 +189,6 @@ namespace Prankard.FlashSpriteSheetImporter
 			}
 			return false;
 		}
-
         private static float GetFloatAttribute(XmlNode node, string name, float defaultValue = 0)
         {
             XmlNode attribute = node.Attributes.GetNamedItem(name);
